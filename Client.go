@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"time"
 
@@ -16,7 +17,8 @@ func main() {
 	for {
 
 		dp := znet.NewDataPack()
-		bytesToBeSent, _ := dp.Pack(znet.NewMsgPacket(0, []byte("zinx v0.5 message sent by client")))
+		msgId := uint32(rand.Intn(6)) % 2
+		bytesToBeSent, _ := dp.Pack(znet.NewMsgPacket(msgId, []byte(fmt.Sprintf("这条是msgId=%d的消息", msgId))))
 
 		conn.Write(bytesToBeSent)
 		headData := make([]byte, dp.GetHeadLen())
