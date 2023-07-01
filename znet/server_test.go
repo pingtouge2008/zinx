@@ -5,6 +5,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/pingtouge2008/zinx/ziface"
 )
 
 func ClientTest() {
@@ -20,10 +22,46 @@ func ClientTest() {
 	}
 }
 
-func TestServer(t *testing.T) {
-	s := NewServer("v1.0")
+func TestServerV0_1(t *testing.T) {
+	s := NewServer("v0.1")
 
 	go ClientTest()
 
+	s.Serve()
+}
+
+// server test v0.3
+type PingRouter struct {
+	BaseRouter
+}
+
+func (p *PingRouter) PreHandle(req ziface.IRequest) {
+	// fmt.Println("PingRouter PreHandle")
+	_, err := req.GetConnection().GetTCPConnection().Write([]byte("before ping...\n"))
+	if err != nil {
+		fmt.Println("PingRouter PreHandle err", err)
+	}
+}
+
+func (p *PingRouter) Handle(req ziface.IRequest) {
+	// fmt.Println("PingRouter Handle")
+	_, err := req.GetConnection().GetTCPConnection().Write([]byte("ping...\n"))
+	if err != nil {
+		fmt.Println("PingRouter Handle err", err)
+	}
+}
+
+func (p *PingRouter) PostHandle(req ziface.IRequest) {
+	// fmt.Println("PingRouter PostHandle")
+	_, err := req.GetConnection().GetTCPConnection().Write([]byte("post ping...\n"))
+	if err != nil {
+		fmt.Println("PingRouter PostHandle err", err)
+	}
+}
+
+func TestServerV0_3(t *testing.T) {
+	s := NewServer("v1.3")
+	s.AddRouter(&PingRouter{})
+	go ClientTest()
 	s.Serve()
 }
