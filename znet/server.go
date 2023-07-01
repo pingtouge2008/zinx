@@ -1,6 +1,7 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -12,6 +13,18 @@ type Server struct {
 	IPVersion string
 	IP        string
 	Port      int
+}
+
+func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
+
+	fmt.Println("[Conn Handle] CallBackToClient ...")
+
+	if _, err := conn.Write(data[:cnt]); err != nil {
+		fmt.Println("write back buf err", err)
+		return errors.New("CallBackToClient error")
+	}
+
+	return nil
 }
 
 func NewServer(name string) ziface.IServer {
@@ -38,28 +51,19 @@ func (s *Server) Start() {
 			fmt.Println("listen tcp err: ", err)
 			return
 		}
-		fmt.Printf("[START] server is listening at %s:%d", s.IP, s.Port)
+		fmt.Printf("[START] server is listening at %s:%d\n", s.IP, s.Port)
+
+		// TODO
+		var cid uint32
 		for {
 			conn, err := listener.AcceptTCP()
 			if err != nil {
 				fmt.Println("accept err: ", err)
 				continue
 			}
-
-			go func() {
-				for {
-					buf := make([]byte, 512)
-					cnt, err := conn.Read(buf)
-					if err != nil {
-						fmt.Println("recv buf err", err)
-						continue
-					}
-					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Println("send buf err", err)
-						continue
-					}
-				}
-			}()
+			dealConn := NewConnection(conn, cid, CallBackToClient)
+			cid++
+			go dealConn.Start()
 		}
 	}()
 }
