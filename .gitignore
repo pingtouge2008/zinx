@@ -1,98 +1,25 @@
-# 忽略编译生成的文件和目录
-*.o
-*.obj
+# Build
+bulid/
 *.exe
-*.dll
-*.so
-*.dylib
-*.bak
-*.tmp
-*.swp
-*.class
 
-# 忽略系统文件
-.DS_Store
-Thumbs.db
-
-# 忽略日志文件
-*.log
-logs/
-
-# 忽略IDE和编辑器生成的文件和目录
-.idea/
-.vscode/
-*.sublime-*
-*.iml
-*.ipr
-*.iws
-
-# 忽略依赖和构建输出目录
-node_modules/
-dist/
-build/
-out/
-
-# 忽略配置文件
+# dotenv
 .env
-config.js
-config.json
 
-# 忽略敏感信息或个人配置
-secrets.json
-credentials.ini
+# venv
+/vendor/
 
-# 忽略缓存文件
-.cache/
-.cached/
-.cmake/
-*.cache
+# Log
+*.log
 
-# 忽略媒体文件
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.ico
+# VSCode settings
+.vscode
 
-# 忽略压缩文件
-*.zip
-*.rar
-*.7z
+# IDEA files
+.idea
 
-# 忽略数据库文件
-*.db
-*.sqlite
-*.sqlite3
-*.db3
+# OSX dir files
+.DS_Store
 
-# 忽略文档文件
-*.pdf
-*.doc
-*.docx
-*.ppt
-*.pptx
-*.xls
-*.xlsx
-
-# 忽略日志和报告文件
-*.xml
-*.html
-*.htm
-*.json
-*.csv
-*.yaml
-*.yml
-
-# 忽略备份文件
-*.bak
-*.backup
-
-# 忽略临时文件
-*.tmp
-*.temp
-
-# 忽略视频文件
-*.avi
-*.mp4
-*.wmv
+# Sublime Text settings
+*.sublime-workspace
+*.sublime-project

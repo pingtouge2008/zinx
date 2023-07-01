@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/pingtouge2008/zinx/utils"
 	"github.com/pingtouge2008/zinx/ziface"
 )
 
@@ -28,12 +29,13 @@ func CallBackToClient(conn *net.TCPConn, data []byte, cnt int) error {
 	return nil
 }
 
-func NewServer(name string) ziface.IServer {
+func NewServer() ziface.IServer {
+	utils.GlobalObject.Reload()
 	s := &Server{
-		Name:      name,
+		Name:      utils.GlobalObject.Name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
-		Port:      6868,
+		IP:        utils.GlobalObject.Host,
+		Port:      utils.GlobalObject.TcpPort,
 		Router:    nil,
 	}
 
@@ -41,6 +43,9 @@ func NewServer(name string) ziface.IServer {
 }
 
 func (s *Server) Start() {
+
+	fmt.Printf("[Zinx] Version: %s, MaxConn: %d, MaxPacketSize: %d\n",
+		utils.GlobalObject.Version, utils.GlobalObject.MaxConn, utils.GlobalObject.MaxPacketSize)
 	go func() {
 		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
 		if err != nil {

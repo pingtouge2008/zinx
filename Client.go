@@ -1,13 +1,12 @@
-package znet
+package main
 
 import (
 	"fmt"
 	"net"
-	"testing"
 	"time"
 )
 
-func ClientTest() {
+func main() {
 	time.Sleep(3 * time.Second)
 
 	conn, _ := net.Dial("tcp4", "127.0.0.1:6868")
@@ -18,13 +17,4 @@ func ClientTest() {
 		fmt.Print(string(buf[:cnt]))
 		time.Sleep(3 * time.Second)
 	}
-}
-
-func TestServerV0_1(t *testing.T) {
-	// s := NewServer("v0.1")
-	s := NewServer()
-
-	go ClientTest()
-
-	s.Serve()
 }
