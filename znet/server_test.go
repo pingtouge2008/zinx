@@ -1,6 +1,8 @@
 package znet
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"testing"

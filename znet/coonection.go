@@ -1,7 +1,9 @@
 package znet
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/pingtouge2008/zinx/ziface"
@@ -71,18 +73,38 @@ func (c *Connection) StartReader() {
 	defer c.Stop()
 
 	for {
-		buf := make([]byte, 512)
-		_, err := c.Conn.Read(buf)
-		if err != nil {
-			fmt.Println("recv buf err ", err)
+
+		dp := NewDataPack()
+		headData := make([]byte, dp.GetHeadLen())
+
+		if _, err := io.ReadFull(c.GetTCPConnection(), headData); err != nil {
+			fmt.Println("read msg head err ", err)
 			c.ExitBuffChan <- true
 			continue
 		}
-		req := Request{
-			conn: c,
-			data: buf,
+
+		msg, err := dp.Unpack(headData)
+		if err != nil {
+			fmt.Println("Unpack err ", err)
+			c.ExitBuffChan <- true
+			continue
 		}
 
+		var data []byte
+
+		if msg.GetDataLen() > 0 {
+			data = make([]byte, msg.GetDataLen())
+			if _, err := io.ReadFull(c.GetTCPConnection(), data); err != nil {
+				fmt.Println("read msg data err ", err)
+				c.ExitBuffChan <- true
+				continue
+			}
+		}
+		msg.SetData(data)
+		req := Request{
+			conn: c,
+			msg:  msg,
+		}
 		go func(req ziface.IRequest) {
 			c.Router.PreHandle(req)
 			c.Router.Handle(req)
@@ -90,4 +112,25 @@ func (c *Connection) StartReader() {
 		}(&req)
 
 	}
+}
+
+func (c *Connection) Send(msgId uint32, data []byte) error {
+	if c.isClosed {
+		fmt.Println("Connection already closed when sending msg")
+		return errors.New("Connection already closed")
+	}
+
+	dp := NewDataPack()
+	msg, err := dp.Pack(NewMsgPacket(msgId, data))
+	if err != nil {
+		fmt.Println("Pack data err", err, "msgId", msgId)
+		return errors.New("Pack data err")
+	}
+
+	if _, err := c.Conn.Write(msg); err != nil {
+		fmt.Println("write msg err", err, "msgId", msgId)
+		return errors.New("conn write msg err")
+	}
+
+	return nil
 }
