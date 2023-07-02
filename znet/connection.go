@@ -15,6 +15,7 @@ type Connection struct {
 	isClosed     bool
 	ExitBuffChan chan bool
 	MsgHandler   ziface.IMsgHandler
+	msgChan      chan []byte // 用于读写两个Goroutine的消息通道
 }
 
 func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) ziface.IConnection {
@@ -25,6 +26,7 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandl
 		isClosed:     false,
 		ExitBuffChan: make(chan bool, 1),
 		MsgHandler:   msgHandler,
+		msgChan:      make(chan []byte),
 	}
 
 	return c
@@ -34,6 +36,7 @@ func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandl
 func (c *Connection) Start() {
 
 	go c.StartReader()
+	go c.StartWriter()
 	for {
 		select {
 		case <-c.ExitBuffChan:
@@ -110,7 +113,25 @@ func (c *Connection) StartReader() {
 	}
 }
 
-func (c *Connection) Send(msgId uint32, data []byte) error {
+func (c *Connection) StartWriter() {
+	fmt.Println("Writer Goroutine is running")
+
+	defer fmt.Println(c.RemoteAddr().String(), "[conn Writer exit!]")
+
+	for {
+		select {
+		case data := <-c.msgChan:
+			if _, err := c.Conn.Write(data); err != nil {
+				fmt.Println("send data err", err, "Conn Writer exit")
+				return
+			}
+		case <-c.ExitBuffChan:
+			return
+		}
+	}
+}
+
+func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 	if c.isClosed {
 		fmt.Println("Connection already closed when sending msg")
 		return errors.New("Connection already closed")
@@ -122,11 +143,6 @@ func (c *Connection) Send(msgId uint32, data []byte) error {
 		fmt.Println("Pack data err", err, "msgId", msgId)
 		return errors.New("Pack data err")
 	}
-
-	if _, err := c.Conn.Write(msg); err != nil {
-		fmt.Println("write msg err", err, "msgId", msgId)
-		return errors.New("conn write msg err")
-	}
-
+	c.msgChan <- msg
 	return nil
 }
