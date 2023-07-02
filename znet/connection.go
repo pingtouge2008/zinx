@@ -11,39 +11,38 @@ import (
 )
 
 type Connection struct {
+	TcpServer    *Server
 	Conn         *net.TCPConn
 	ConnID       uint32
 	isClosed     bool
 	ExitBuffChan chan bool
 	MsgHandler   ziface.IMsgHandler
-	msgChan      chan []byte // 用于读写两个Goroutine的消息通道
+	msgChan      chan []byte // 用于读写两个Goroutine的消息通道(无缓冲)
+	msgBufChan   chan []byte // 用于读写两个Goroutine的消息通道(有缓冲)
 }
 
-func NewConnection(conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) ziface.IConnection {
+func NewConnection(server *Server, conn *net.TCPConn, connID uint32, msgHandler ziface.IMsgHandler) ziface.IConnection {
 
 	c := &Connection{
+		TcpServer:    server,
 		Conn:         conn,
 		ConnID:       connID,
 		isClosed:     false,
 		ExitBuffChan: make(chan bool, 1),
 		MsgHandler:   msgHandler,
 		msgChan:      make(chan []byte),
+		msgBufChan:   make(chan []byte, utils.GlobalObject.MaxMsgChanLen),
 	}
+	c.TcpServer.GetConnManager().Add(c)
 
 	return c
 
 }
 
 func (c *Connection) Start() {
-
 	go c.StartReader()
 	go c.StartWriter()
-	for {
-		select {
-		case <-c.ExitBuffChan:
-			return
-		}
-	}
+	c.TcpServer.CallOnConnStart(c)
 }
 
 func (c *Connection) Stop() {
@@ -52,11 +51,17 @@ func (c *Connection) Stop() {
 	}
 	c.isClosed = true
 
+	c.TcpServer.CallOnConnStop(c)
+
 	c.Conn.Close()
 
 	c.ExitBuffChan <- true
 
+	c.TcpServer.GetConnManager().Remove(c)
+
 	close(c.ExitBuffChan)
+	close(c.msgChan)
+	close(c.msgBufChan)
 }
 
 func (c *Connection) GetTCPConnection() *net.TCPConn {
@@ -73,7 +78,7 @@ func (c *Connection) RemoteAddr() net.Addr {
 
 func (c *Connection) StartReader() {
 	fmt.Println("Reader Goroutine is running")
-	defer fmt.Printf("%s conn reader exit", c.RemoteAddr())
+	defer fmt.Println(c.RemoteAddr(), "[conn Reader exit]")
 	defer c.Stop()
 
 	for {
@@ -84,14 +89,14 @@ func (c *Connection) StartReader() {
 		if _, err := io.ReadFull(c.GetTCPConnection(), headData); err != nil {
 			fmt.Println("read msg head err ", err)
 			c.ExitBuffChan <- true
-			continue
+			return
 		}
 
 		msg, err := dp.Unpack(headData)
 		if err != nil {
 			fmt.Println("Unpack err ", err)
 			c.ExitBuffChan <- true
-			continue
+			return
 		}
 
 		var data []byte
@@ -101,7 +106,7 @@ func (c *Connection) StartReader() {
 			if _, err := io.ReadFull(c.GetTCPConnection(), data); err != nil {
 				fmt.Println("read msg data err ", err)
 				c.ExitBuffChan <- true
-				continue
+				return
 			}
 		}
 		msg.SetData(data)
@@ -130,10 +135,20 @@ func (c *Connection) StartWriter() {
 				fmt.Println("send data err", err, "Conn Writer exit")
 				return
 			}
+		case data, ok := <-c.msgBufChan:
+			if ok {
+				if _, err := c.Conn.Write(data); err != nil {
+					fmt.Println("send buf data err", err, "Conn Writer exit")
+					return
+				}
+			} else {
+				return
+			}
 		case <-c.ExitBuffChan:
 			return
 		}
 	}
+
 }
 
 func (c *Connection) SendMsg(msgId uint32, data []byte) error {
@@ -149,5 +164,22 @@ func (c *Connection) SendMsg(msgId uint32, data []byte) error {
 		return errors.New("Pack data err")
 	}
 	c.msgChan <- msg
+	return nil
+}
+
+func (c *Connection) SendBufMsg(msgId uint32, data []byte) error {
+	if c.isClosed {
+		fmt.Println("Connection already closed when sending msg")
+		return errors.New("Connection already closed")
+	}
+
+	dp := NewDataPack()
+
+	msg, err := dp.Pack(NewMsgPacket(msgId, data))
+	if err != nil {
+		fmt.Println("Pack data err", err, "msgId", msgId)
+		return errors.New("Pack data err")
+	}
+	c.msgBufChan <- msg
 	return nil
 }

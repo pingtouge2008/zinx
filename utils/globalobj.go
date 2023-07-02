@@ -18,6 +18,7 @@ type GlobalObj struct {
 	WorkerPoolSize   uint32 // 业务线程池worker个数
 	MaxWorkerTaskLen uint32 // 每个worker对应的消息队列的长度
 	ConfFilePath     string
+	MaxMsgChanLen    uint32
 }
 
 var GlobalObject *GlobalObj
@@ -43,6 +44,7 @@ func init() {
 		ConfFilePath:     "conf/zinx.json",
 		WorkerPoolSize:   10,
 		MaxWorkerTaskLen: 1024,
+		MaxMsgChanLen:    1024,
 	}
 
 	GlobalObject.Reload()
