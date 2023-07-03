@@ -44,9 +44,12 @@ func (p *HelloZinxRouter) Handle(req ziface.IRequest) {
 
 func DoConnectionBegin(conn ziface.IConnection) {
 	fmt.Println("DoConnectionBegin", conn)
+	conn.SetProperty("name", "connection-ptg")
 	conn.SendMsg(2, []byte("DoConnectionBegin"))
 }
 
 func DoConnectionLost(conn ziface.IConnection) {
 	fmt.Println("DoConnectionLost is called")
+	p, _ := conn.GetProperty("name")
+	fmt.Println(p)
 }
